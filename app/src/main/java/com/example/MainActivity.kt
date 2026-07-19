@@ -1624,6 +1624,160 @@ class MainActivity : ComponentActivity() {
             com.example.util.BackgroundMediaManager.stop()
             return true
         }
+
+        if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+            // Global Screen Shortcuts: Ctrl + Shift + [Key]
+            if (event.isCtrlPressed && event.isShiftPressed) {
+                when (event.keyCode) {
+                    android.view.KeyEvent.KEYCODE_S -> {
+                        val current = viewModel.currentScreen.value
+                        if (current == Screen.SETTINGS) {
+                            viewModel.updateSettingsActivePage(0)
+                        } else {
+                            viewModel.navigateTo(Screen.SETTINGS)
+                        }
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_T -> { viewModel.navigateTo(Screen.TIMER); return true }
+                    android.view.KeyEvent.KEYCODE_C -> { viewModel.navigateTo(Screen.CALENDAR); return true }
+                    android.view.KeyEvent.KEYCODE_K -> { viewModel.navigateTo(Screen.KEEP_NOTES); return true }
+                    android.view.KeyEvent.KEYCODE_J -> { viewModel.navigateTo(Screen.JOURNAL); return true }
+                    android.view.KeyEvent.KEYCODE_H -> { viewModel.navigateTo(Screen.HABITS); return true }
+                    android.view.KeyEvent.KEYCODE_F -> { viewModel.navigateTo(Screen.FINANCES); return true }
+                    android.view.KeyEvent.KEYCODE_D -> { viewModel.navigateTo(Screen.DEEPA_AI); return true }
+                    android.view.KeyEvent.KEYCODE_N -> { viewModel.navigateTo(Screen.TASKS); return true }
+                    android.view.KeyEvent.KEYCODE_A -> { viewModel.navigateTo(Screen.ANALYTICS); return true }
+                    android.view.KeyEvent.KEYCODE_L -> { viewModel.navigateTo(Screen.LIVE_SPHERE); return true }
+                    android.view.KeyEvent.KEYCODE_O -> { viewModel.navigateTo(Screen.FOCUS_LOCKER); return true }
+                    android.view.KeyEvent.KEYCODE_X -> { viewModel.navigateTo(Screen.FILE_EXPLORER); return true }
+                    android.view.KeyEvent.KEYCODE_G -> { viewModel.navigateTo(Screen.CONTACTS); return true }
+                    android.view.KeyEvent.KEYCODE_R -> { viewModel.navigateTo(Screen.ARENA); return true }
+                    android.view.KeyEvent.KEYCODE_P -> { viewModel.navigateTo(Screen.COUNTDOWN); return true }
+                    android.view.KeyEvent.KEYCODE_U -> { viewModel.navigateTo(Screen.HEALTH); return true }
+                }
+            }
+
+            // Settings Pages & Actions: Alt + [Key]
+            if (event.isAltPressed) {
+                when (event.keyCode) {
+                    android.view.KeyEvent.KEYCODE_G, android.view.KeyEvent.KEYCODE_1 -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(1)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_D, android.view.KeyEvent.KEYCODE_2 -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(17)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_U, android.view.KeyEvent.KEYCODE_3 -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(16)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_B, android.view.KeyEvent.KEYCODE_4 -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(11)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_R, android.view.KeyEvent.KEYCODE_5 -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(12)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_T, android.view.KeyEvent.KEYCODE_6 -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(2)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_S, android.view.KeyEvent.KEYCODE_7 -> {
+                        viewModel.navigateTo(Screen.FOCUS_LOCKER)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_K, android.view.KeyEvent.KEYCODE_8 -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(3)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_C, android.view.KeyEvent.KEYCODE_9 -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(4)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_H, android.view.KeyEvent.KEYCODE_0 -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(5)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_W -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(21)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_A -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(6)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_J -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(7)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_I -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(8)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_E -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(9)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_F -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(10)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_L -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(13)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_M -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(14)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_P -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(19)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_O -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(18)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_X -> {
+                        viewModel.logout()
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_Y -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(0)
+                        viewModel.setShowUninstallConfirm(true)
+                        return true
+                    }
+                    android.view.KeyEvent.KEYCODE_Q -> {
+                        viewModel.navigateTo(Screen.SETTINGS)
+                        viewModel.updateSettingsActivePage(0)
+                        return true
+                    }
+                }
+            }
+        }
+
         return super.dispatchKeyEvent(event)
     }
 }

@@ -1013,8 +1013,25 @@ fun ArenaScreen(viewModel: AppViewModel, modifier: Modifier = Modifier) {
                                                 modifier = Modifier.width(60.dp)
                                             )
 
+                                            LaunchedEffect(peer.email) {
+                                                if (!viewModel.firestoreAvatars.containsKey(peer.email)) {
+                                                    viewModel.fetchUserAvatarFromFirestore(peer.email)
+                                                }
+                                            }
+
+                                            val resolvedEmoji = remember(peer.email, peer.customEmoji, viewModel.firestoreAvatars.size) {
+                                                val cached = viewModel.firestoreAvatars[peer.email]
+                                                if (!cached.isNullOrEmpty() && cached != "👤") {
+                                                    cached
+                                                } else if (!peer.customEmoji.isNullOrEmpty() && peer.customEmoji != "👤") {
+                                                    peer.customEmoji
+                                                } else {
+                                                    "👤"
+                                                }
+                                            }
+
                                             UserAvatar(
-                                                emojiOrBase64 = peer.customEmoji,
+                                                emojiOrBase64 = resolvedEmoji,
                                                 size = 32.dp,
                                                 fontSize = 11.sp,
                                                 fallback = peer.displayName.take(2).uppercase()
@@ -1597,14 +1614,20 @@ fun ArenaPodium(
                         }
 
                         // Initials Avatar
-                        val resolvedEmoji = when {
-                            !viewModel.firestoreAvatars[peer.email].isNullOrEmpty() -> viewModel.firestoreAvatars[peer.email]
-                            !peer.customEmoji.isNullOrEmpty() -> peer.customEmoji
-                            else -> {
-                                LaunchedEffect(peer.email) {
-                                    viewModel.fetchUserAvatarFromFirestore(peer.email)
-                                }
+                        LaunchedEffect(peer.email) {
+                            if (!viewModel.firestoreAvatars.containsKey(peer.email)) {
+                                viewModel.fetchUserAvatarFromFirestore(peer.email)
+                            }
+                        }
+
+                        val resolvedEmoji = remember(peer.email, peer.customEmoji, viewModel.firestoreAvatars.size) {
+                            val cached = viewModel.firestoreAvatars[peer.email]
+                            if (!cached.isNullOrEmpty() && cached != "👤") {
+                                cached
+                            } else if (!peer.customEmoji.isNullOrEmpty() && peer.customEmoji != "👤") {
                                 peer.customEmoji
+                            } else {
+                                "👤"
                             }
                         }
                         val avatarSize = if (rank == 1) 46.dp else if (rank == 2) 40.dp else 36.dp
@@ -1749,14 +1772,20 @@ fun LeaderboardRow(
                     modifier = Modifier.width(24.dp)
                 )
 
-                val resolvedEmoji = when {
-                    !viewModel.firestoreAvatars[peer.email].isNullOrEmpty() -> viewModel.firestoreAvatars[peer.email]
-                    !peer.customEmoji.isNullOrEmpty() -> peer.customEmoji
-                    else -> {
-                        LaunchedEffect(peer.email) {
-                            viewModel.fetchUserAvatarFromFirestore(peer.email)
-                        }
+                LaunchedEffect(peer.email) {
+                    if (!viewModel.firestoreAvatars.containsKey(peer.email)) {
+                        viewModel.fetchUserAvatarFromFirestore(peer.email)
+                    }
+                }
+
+                val resolvedEmoji = remember(peer.email, peer.customEmoji, viewModel.firestoreAvatars.size) {
+                    val cached = viewModel.firestoreAvatars[peer.email]
+                    if (!cached.isNullOrEmpty() && cached != "👤") {
+                        cached
+                    } else if (!peer.customEmoji.isNullOrEmpty() && peer.customEmoji != "👤") {
                         peer.customEmoji
+                    } else {
+                        "👤"
                     }
                 }
                 UserAvatar(

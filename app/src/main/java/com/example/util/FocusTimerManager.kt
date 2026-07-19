@@ -51,6 +51,26 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
+fun android.content.SharedPreferences.getSafeLong(key: String, defValue: Long): Long {
+    return try {
+        val value = this.all[key]
+        if (value == null) {
+            defValue
+        } else {
+            when (value) {
+                is Long -> value
+                is Int -> value.toLong()
+                is Float -> value.toLong()
+                is Double -> value.toLong()
+                is String -> value.toLongOrNull() ?: defValue
+                else -> defValue
+            }
+        }
+    } catch (e: Exception) {
+        defValue
+    }
+}
+
 object FocusTimerManager {
     private val firebaseSyncMutex = Mutex()
     private val logLock = Any()
@@ -640,22 +660,6 @@ object FocusTimerManager {
         saveActiveSessionState(context)
     }
 
-    private fun android.content.SharedPreferences.getSafeLong(key: String, defValue: Long): Long {
-        return try {
-            this.getLong(key, defValue)
-        } catch (e: Exception) {
-            try {
-                this.getInt(key, defValue.toInt()).toLong()
-            } catch (e2: Exception) {
-                try {
-                    this.getString(key, null)?.toLongOrNull() ?: defValue
-                } catch (e3: Exception) {
-                    defValue
-                }
-            }
-        }
-    }
-
     fun restoreStateFromDisk(context: Context) {
         val prefs = context.applicationContext.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         _isTimerRunning.value = prefs.getBoolean("timer_is_running", false)
@@ -873,7 +877,7 @@ object FocusTimerManager {
             _totalFocusMinutes.value = prefs.getInt("total_focus_minutes", 0)
             val sanitizedEmail = getSanitizedEmail(context)
             if (sanitizedEmail != null) {
-                _adoptedTodayMs.value = prefs.getLong("adopted_today_ms_${sanitizedEmail}", 0L)
+                _adoptedTodayMs.value = prefs.getSafeLong("adopted_today_ms_${sanitizedEmail}", 0L)
             }
             _focusRecords.value = loadFocusRecords(context)
             reloadFocusRecordsFromDb(context)
@@ -1293,7 +1297,6 @@ object FocusTimerManager {
                 updateOverlayVisibility(appContext)
 
                 val totalDurationMs = _timerDurationMinutes.value * 60 * 1000L
-                var lastRecordedMinutes = ((_accumulatedSessionTimeMs.value / 1000) / 60).toInt()
 
                 while (_isTimerRunning.value && _isFocusPhase.value) {
                     delay(200) // UI refresh rate
@@ -1321,17 +1324,6 @@ object FocusTimerManager {
                         }
                         pauseTimer(appContext)
                         break
-                    }
-
-                    val currentMinutes = ((totalElapsedMs / 1000) / 60).toInt()
-                    val diffMinutes = currentMinutes - lastRecordedMinutes
-                    if (diffMinutes > 0) {
-                        lastRecordedMinutes = currentMinutes
-                        _attachedTask.value?.let { task ->
-                            val updatedTask = task.copy(actualMinutes = task.actualMinutes + diffMinutes)
-                            updateTaskInDatabase(appContext, updatedTask)
-                            _attachedTask.value = updatedTask
-                        }
                     }
                     
                     updateOverlayTextAndState()
@@ -4266,7 +4258,7 @@ object FocusSessionDbHelper {
                     val sessionExcess = sessionMins % 15
 
                     val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                    val prevExcess = prefs.getLong("accumulated_excess_minutes", 0L)
+                    val prevExcess = prefs.getSafeLong("accumulated_excess_minutes", 0L)
                     val newExcess = prevExcess + sessionExcess
 
                     val edit = prefs.edit()

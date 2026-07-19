@@ -282,9 +282,16 @@ fun TimerView(viewModel: AppViewModel, modifier: Modifier = Modifier) {
         completedTodaySecs + pendingSecs + activeSecs
     }
 
+    val userEmail by viewModel.userEmail.collectAsStateWithLifecycle()
+    val currentMeEmail = remember(userEmail) { userEmail.lowercase().trim() }
+    val leaderboard by com.example.api.ArenaLeaderboardEngine.leaderboardFlow.collectAsStateWithLifecycle(emptyList())
+    val myLeaderboardPeer = remember(leaderboard, currentMeEmail) {
+        leaderboard.find { it.email.lowercase().trim() == currentMeEmail }
+    }
     val historyRecords by viewModel.allHistoryVault.collectAsStateWithLifecycle(initialValue = emptyList())
-    val activeStreak = remember(historyRecords) {
-        com.example.api.AnalyticsVaultEngine.calculateDailyConsistencyStreak(context, historyRecords)
+    val activeStreak = remember(historyRecords, myLeaderboardPeer) {
+        val myLocalStreak = com.example.api.AnalyticsVaultEngine.calculateDailyConsistencyStreak(context, historyRecords)
+        if (myLocalStreak > 0) myLocalStreak else (myLeaderboardPeer?.activeStreak ?: 0)
     }
     val myXp = remember(globalTodaySeconds, activeStreak) {
         com.example.api.ArenaLeaderboardEngine.calculateXp(globalTodaySeconds * 1000L, activeStreak)
@@ -912,7 +919,7 @@ fun TimerConfirmDialogController(
     }
 
     // Centralized auto-save effect
-    LaunchedEffect(showElapsedTimeDialog, stoppedElapsedSeconds) {
+    LaunchedEffect(showElapsedTimeDialog, stoppedElapsedSeconds, isAutoSavedSessionActive) {
         if (showElapsedTimeDialog) {
             val totalSeconds = stoppedElapsedSeconds
             if (totalSeconds > 0 && !isAutoSavedSessionActive) {
@@ -1781,7 +1788,12 @@ fun androidx.compose.foundation.layout.ColumnScope.FriendHistoryDetailsContent(
     val WaterBlue = Color(0xFF38BDF8)
     val yesterdayHistoryText by viewModel.friendYesterdayHistory.collectAsStateWithLifecycle()
 
-    val targetUser = allUsers[peer.username]
+    val meEmail = viewModel.userEmail.value.lowercase().trim()
+    val targetUser = if (peer.isMe) {
+        if (meEmail.isNotEmpty()) allUsers[meEmail] else null
+    } else {
+        allUsers[peer.username]
+    }
     val lastUpdated = targetUser?.lastUpdatedTimestamp ?: 0L
     val lastUpdatedDateStr = if (lastUpdated > 0) {
         java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date(lastUpdated))
@@ -2439,17 +2451,21 @@ fun FriendsFocusDetailsDialog(
     }
 
     val currentMeUsername = viewModel.currentUsername.collectAsState().value ?: "me_user"
+    val userEmail by viewModel.userEmail.collectAsState()
+    val meEmailClean = userEmail.lowercase().trim()
     val userName = viewModel.userName.collectAsState().value
     val userNickname = viewModel.userNickname.collectAsState().value
     val myName = if (userNickname.isNotEmpty()) userNickname else if (userName.isNotEmpty()) userName else "Bharathikrishna M"
     val myEmoji = viewModel.userEmoji.collectAsState().value.ifEmpty { "👤" }
 
-    val participantInfos = remember(allUsers, selectedFilter, targetDates, currentMeUsername, myName, myEmoji, showElapsedTimeDialog, viewModel.firestoreAvatars.size) {
+    val participantInfos = remember(allUsers, selectedFilter, targetDates, currentMeUsername, userEmail, myName, myEmoji, showElapsedTimeDialog, viewModel.firestoreAvatars.size) {
         val keys = mutableSetOf<String>()
         keys.add(currentMeUsername)
         allUsers.forEach { (username, _) ->
-            if (username != "admin" && 
-                username != currentMeUsername
+            val k = username.lowercase().trim()
+            if (k != "admin" && 
+                k != currentMeUsername.lowercase().trim() &&
+                (meEmailClean.isEmpty() || k != meEmailClean)
             ) {
                 keys.add(username)
             }
@@ -2457,7 +2473,11 @@ fun FriendsFocusDetailsDialog(
 
         keys.map { username ->
             val isMe = username == currentMeUsername
-            val peerRemote = allUsers[username]
+            val peerRemote = if (isMe) {
+                if (meEmailClean.isNotEmpty()) allUsers[meEmailClean] else null
+            } else {
+                allUsers[username]
+            }
 
             val totalFilterSeconds = getFilterSecondsForUser(
                 username = username,
@@ -2860,7 +2880,12 @@ fun FriendsFocusDetailsDialog(
                                         baseSeconds = peer.liveFocusedSeconds,
                                         isFocusing = peer.isFocusing,
                                         isMe = peer.isMe,
-                                        peerRemote = allUsers[peer.username],
+                                        peerRemote = if (peer.isMe) {
+                                            val meEmail = viewModel.userEmail.value.lowercase().trim()
+                                            if (meEmail.isNotEmpty()) allUsers[meEmail] else null
+                                        } else {
+                                            allUsers[peer.username]
+                                        },
                                         filter = selectedFilter
                                     )
 
@@ -3426,7 +3451,12 @@ fun TimerHistoryView(
 
                         val allUsers by viewModel.allUsers.collectAsStateWithLifecycle()
                         val currentUsername by viewModel.currentUsername.collectAsStateWithLifecycle()
-                        val myUserProfile = currentUsername?.let { allUsers[it] }
+                        val userEmail by viewModel.userEmail.collectAsStateWithLifecycle()
+                        val myUserProfile = if (userEmail.isNotEmpty()) {
+                            allUsers[userEmail.lowercase().trim()]
+                        } else {
+                            currentUsername?.let { allUsers[it] }
+                        }
                         val devicesMap = myUserProfile?.devices ?: emptyMap()
                         val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
                         val localUploadStatus = prefs.getString("local_device_upload_status", "COMPLETED") ?: "COMPLETED"
@@ -4909,9 +4939,16 @@ fun TimerLiveControlContent(
     val context = LocalContext.current
     val WaterBlue = Color(0xFF38BDF8)
 
+    val userEmail by viewModel.userEmail.collectAsStateWithLifecycle()
+    val currentMeEmail = remember(userEmail) { userEmail.lowercase().trim() }
+    val leaderboard by com.example.api.ArenaLeaderboardEngine.leaderboardFlow.collectAsStateWithLifecycle(emptyList())
+    val myLeaderboardPeer = remember(leaderboard, currentMeEmail) {
+        leaderboard.find { it.email.lowercase().trim() == currentMeEmail }
+    }
     val historyRecords by viewModel.allHistoryVault.collectAsStateWithLifecycle(initialValue = emptyList())
-    val activeStreak = remember(historyRecords) {
-        com.example.api.AnalyticsVaultEngine.calculateDailyConsistencyStreak(context, historyRecords)
+    val activeStreak = remember(historyRecords, myLeaderboardPeer) {
+        val myLocalStreak = com.example.api.AnalyticsVaultEngine.calculateDailyConsistencyStreak(context, historyRecords)
+        if (myLocalStreak > 0) myLocalStreak else (myLeaderboardPeer?.activeStreak ?: 0)
     }
     val myXp = remember(globalTodaySeconds, activeStreak) {
         com.example.api.ArenaLeaderboardEngine.calculateXp(globalTodaySeconds * 1000L, activeStreak)
@@ -5074,7 +5111,7 @@ fun TimerLiveControlContent(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(text = "Wasted Today", color = Color(0xFFEF4444), fontSize = 11.sp, fontWeight = FontWeight.Medium)
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(text = "$wastedMins mins", color = Color(0xFFEF4444), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                        Text(text = formatMinsToHhMm(wastedMins), color = Color(0xFFEF4444), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(text = "Current XP", color = Color.LightGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
@@ -5449,7 +5486,7 @@ fun TimerLiveControlContent(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(text = "Wasted Today", color = Color(0xFFEF4444), fontSize = 11.sp, fontWeight = FontWeight.Medium)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(text = "$wastedMins mins", color = Color(0xFFEF4444), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                            Text(text = formatMinsToHhMm(wastedMins), color = Color(0xFFEF4444), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(text = "Current XP", color = Color.LightGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
@@ -5909,9 +5946,16 @@ fun LiveControlTimerBar(
     } else {
         if (sessionStartTimestamp == null && timerSecondsRemaining == focusTimerDurationMins * 60) {
             val context = LocalContext.current
+            val userEmail by viewModel.userEmail.collectAsStateWithLifecycle()
+            val currentMeEmail = remember(userEmail) { userEmail.lowercase().trim() }
+            val leaderboard by com.example.api.ArenaLeaderboardEngine.leaderboardFlow.collectAsStateWithLifecycle(emptyList())
+            val myLeaderboardPeer = remember(leaderboard, currentMeEmail) {
+                leaderboard.find { it.email.lowercase().trim() == currentMeEmail }
+            }
             val historyRecords by viewModel.allHistoryVault.collectAsStateWithLifecycle(initialValue = emptyList())
-            val activeStreak = remember(historyRecords) {
-                com.example.api.AnalyticsVaultEngine.calculateDailyConsistencyStreak(context, historyRecords)
+            val activeStreak = remember(historyRecords, myLeaderboardPeer) {
+                val myLocalStreak = com.example.api.AnalyticsVaultEngine.calculateDailyConsistencyStreak(context, historyRecords)
+                if (myLocalStreak > 0) myLocalStreak else (myLeaderboardPeer?.activeStreak ?: 0)
             }
             val myXp = remember(globalTodaySeconds, activeStreak) {
                 com.example.api.ArenaLeaderboardEngine.calculateXp(globalTodaySeconds * 1000L, activeStreak)
@@ -5937,7 +5981,7 @@ fun LiveControlTimerBar(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "Wasted Today", color = Color(0xFFEF4444), fontSize = 11.sp, fontWeight = FontWeight.Medium)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "$wastedMins mins", color = Color(0xFFEF4444), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                    Text(text = formatMinsToHhMm(wastedMins), color = Color(0xFFEF4444), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "Current XP", color = Color.LightGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
@@ -6164,9 +6208,16 @@ fun LiveControlStopwatchBar(
     } else {
         if (sessionStartTimestamp == null && stopwatchSeconds == 0) {
             val context = LocalContext.current
+            val userEmail by viewModel.userEmail.collectAsStateWithLifecycle()
+            val currentMeEmail = remember(userEmail) { userEmail.lowercase().trim() }
+            val leaderboard by com.example.api.ArenaLeaderboardEngine.leaderboardFlow.collectAsStateWithLifecycle(emptyList())
+            val myLeaderboardPeer = remember(leaderboard, currentMeEmail) {
+                leaderboard.find { it.email.lowercase().trim() == currentMeEmail }
+            }
             val historyRecords by viewModel.allHistoryVault.collectAsStateWithLifecycle(initialValue = emptyList())
-            val activeStreak = remember(historyRecords) {
-                com.example.api.AnalyticsVaultEngine.calculateDailyConsistencyStreak(context, historyRecords)
+            val activeStreak = remember(historyRecords, myLeaderboardPeer) {
+                val myLocalStreak = com.example.api.AnalyticsVaultEngine.calculateDailyConsistencyStreak(context, historyRecords)
+                if (myLocalStreak > 0) myLocalStreak else (myLeaderboardPeer?.activeStreak ?: 0)
             }
             val myXp = remember(globalTodaySeconds, activeStreak) {
                 com.example.api.ArenaLeaderboardEngine.calculateXp(globalTodaySeconds * 1000L, activeStreak)
@@ -6192,7 +6243,7 @@ fun LiveControlStopwatchBar(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "Wasted Today", color = Color(0xFFEF4444), fontSize = 11.sp, fontWeight = FontWeight.Medium)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = "$wastedMins mins", color = Color(0xFFEF4444), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                    Text(text = formatMinsToHhMm(wastedMins), color = Color(0xFFEF4444), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "Current XP", color = Color.LightGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
@@ -8117,9 +8168,12 @@ fun FriendsFocusLeaderboardTable(
                 online = true
             )
             
+            val meEmail = viewModel.userEmail.value.lowercase().trim()
             val livePeers = allUsers.filter { entry ->
-                entry.key != "admin" && 
-                entry.key != meUsername
+                val k = entry.key.lowercase().trim()
+                k != "admin" && 
+                k != meUsername.lowercase().trim() &&
+                (meEmail.isEmpty() || k != meEmail)
             }.map { entry ->
                 val username = entry.key
                 val u = entry.value
@@ -9825,6 +9879,12 @@ private fun formatMinsToReadableCalendar(totalMins: Int): String {
     val h = totalMins / 60
     val m = totalMins % 60
     return if (h > 0) "${h}h ${m}m" else "${m}m"
+}
+
+private fun formatMinsToHhMm(totalMins: Int): String {
+    val h = totalMins / 60
+    val m = totalMins % 60
+    return String.format(java.util.Locale.US, "%02d:%02d", h, m)
 }
 
 private fun formatHourLabel(hour: Int): String {

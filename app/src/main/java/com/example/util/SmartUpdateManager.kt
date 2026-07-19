@@ -447,12 +447,20 @@ object BSPatch {
         dis.readFully(magicBytes)
         val magic = String(magicBytes)
 
+        if (magic != "BSDIFF40") {
+            throw IOException("Invalid magic header: expected BSDIFF40, got $magic")
+        }
+
         val ctrlBlockLen = readLong(dis)
         val diffBlockLen = readLong(dis)
         val newSize = readLong(dis).toInt()
 
-        if (ctrlBlockLen < 0 || diffBlockLen < 0 || newSize < 0) {
-            throw IOException("Invalid patch header: negative lengths")
+        val MAX_BLOCK_SIZE = 100 * 1024 * 1024 // 100 MB max for ctrl/diff block
+        val MAX_NEW_SIZE = 300 * 1024 * 1024 // 300 MB max for patched APK size
+
+        if (ctrlBlockLen < 0 || diffBlockLen < 0 || newSize < 0 ||
+            ctrlBlockLen > MAX_BLOCK_SIZE || diffBlockLen > MAX_BLOCK_SIZE || newSize > MAX_NEW_SIZE) {
+            throw IOException("Invalid patch header: unsafe block sizes (ctrl=$ctrlBlockLen, diff=$diffBlockLen, newSize=$newSize)")
         }
 
         // Decompress blocks using GZIPInputStream
@@ -463,6 +471,9 @@ object BSPatch {
         dis.readFully(diffBytes)
 
         val extraBlockLen = patchBytes.size - 32 - ctrlBlockLen.toInt() - diffBlockLen.toInt()
+        if (extraBlockLen < 0 || extraBlockLen > MAX_BLOCK_SIZE) {
+            throw IOException("Invalid patch header: unsafe extraBlockLen=$extraBlockLen")
+        }
         val extraBytes = ByteArray(extraBlockLen)
         dis.readFully(extraBytes)
 

@@ -303,6 +303,13 @@ class AppViewModel(
         _settingsActivePage.value = page
     }
 
+    private val _showUninstallConfirm = MutableStateFlow(false)
+    val showUninstallConfirm: StateFlow<Boolean> = _showUninstallConfirm.asStateFlow()
+
+    fun setShowUninstallConfirm(show: Boolean) {
+        _showUninstallConfirm.value = show
+    }
+
     // Default tab list
     val defaultScreens = listOf(
         Screen.DEEPA_AI, Screen.KEEP_NOTES, Screen.HEALTH, Screen.SEARCH, Screen.TASKS, Screen.CALENDAR, Screen.TIMER, Screen.ARENA, Screen.HABITS, Screen.COUNTDOWN, Screen.JOURNAL, Screen.CONTACTS, Screen.FILE_EXPLORER, Screen.FINANCES, Screen.ANALYTICS, Screen.SETTINGS
@@ -1230,40 +1237,11 @@ class AppViewModel(
         setShowElapsedTimeDialog(false) // Disable show elapsed time dialog completely!
 
         // Directly save the session in the database locally and synchronize with the cloud!
-        val totalSeconds = elapsedSecs
-        val finalMinutes = com.example.util.TimeEngine.roundSecondsToMinutes(totalSeconds)
-
-        val sessionStart = sessionStartTimestamp.value ?: (System.currentTimeMillis() - totalSeconds * 1000L)
-        val maxAllowed = System.currentTimeMillis() - sessionStart
-        val newSessionDuration = totalSeconds * 1000L
-        if (newSessionDuration <= maxAllowed + 5000L) {
-            addFocusMinutes(finalMinutes)
-            if (sessionType == "timer" && finalMinutes >= focusTimerDurationMins.value) {
-                incrementTodayPomos()
-            }
-            val formatter = java.text.SimpleDateFormat("hh:mm:ss a", java.util.Locale.getDefault())
-            val startStr = sessionStartTimestamp.value?.let { formatter.format(java.util.Date(it)) }
-                ?: formatter.format(java.util.Date(System.currentTimeMillis() - totalSeconds * 1000L))
-            val endStr = formatter.format(java.util.Date())
-            val taskName = attachedTask.value?.title ?: "Focus Session"
-
-            addFocusRecord(
-                startStr,
-                endStr,
-                taskName,
-                finalMinutes,
-                focusNotesInput.value.trim(),
-                totalSeconds,
-                tag = attachedTag.value,
-                mode = if (sessionType == "stopwatch") "STOPWATCH" else "POMODORO"
-            )
-
-            attachedTask.value?.let { task ->
-                val updated = task.copy(actualMinutes = task.actualMinutes + finalMinutes)
-                updateTask(updated)
-                attachTaskToTimer(updated)
-            }
-        }
+        FocusTimerManager.persistFocusSession(
+            context = getApplication(),
+            elapsedSecs = elapsedSecs,
+            isTimer = (sessionType == "timer")
+        )
 
         val rtdbEmail = com.example.api.DynamicCommandManager.activeEmail
         if (rtdbEmail.isNotEmpty()) {
@@ -1383,6 +1361,7 @@ class AppViewModel(
             com.example.api.DynamicCommandManager.startListeningToActiveFocusTimer(getApplication(), emailToUse)
             com.example.api.DailyAggregationWorker.schedule(getApplication(), emailToUse)
             com.example.api.PeerLiveSphereManager.startListeningToFriends(getApplication(), emailToUse)
+            com.example.api.ArenaLeaderboardEngine.startListening(getApplication(), emailToUse, "TODAY")
             com.example.api.BellReceiverService.startListening(getApplication(), emailToUse)
             com.example.api.FocusLockerManager.checkForExistingRoomsAndReconnect(getApplication(), emailToUse)
             syncSyllabusCompletionFromCloud()
@@ -2477,6 +2456,7 @@ class AppViewModel(
             com.example.api.DynamicCommandManager.startListeningToActiveFocusTimer(getApplication(), email)
             com.example.api.DailyAggregationWorker.schedule(getApplication(), email)
             com.example.api.PeerLiveSphereManager.startListeningToFriends(getApplication(), email)
+            com.example.api.ArenaLeaderboardEngine.startListening(getApplication(), email, "TODAY")
             com.example.api.BellReceiverService.startListening(getApplication(), email)
             com.example.api.FocusLockerManager.checkForExistingRoomsAndReconnect(getApplication(), email)
             syncSyllabusCompletionFromCloud()
@@ -6061,13 +6041,18 @@ class AppViewModel(
             .sumOf { it.durationSeconds }
 
         // Calculate Rank
+        val email = if (_userEmail.value.isNotEmpty()) _userEmail.value else if (username.contains("@")) username else prefs.getString("user_email_${username}", "") ?: ""
+        val meEmailClean = email.lowercase().trim()
         val allUsernames = allUsers.value.keys
         val usernames = allUsernames.toList()
 
         val userSecondsMap = mutableMapOf<String, Int>()
         userSecondsMap[username] = myYesterdaySeconds
 
-        usernames.filter { it != username }.forEach { peer ->
+        usernames.filter { 
+            val k = it.lowercase().trim()
+            k != username.lowercase().trim() && (meEmailClean.isEmpty() || k != meEmailClean)
+        }.forEach { peer ->
             val peerRecords = FocusTimerManager.loadPeerFocusRecords(context, peer)
             val peerSecs = peerRecords.filter { it.dateString == yesterdayStr }.sumOf { it.durationSeconds }
             

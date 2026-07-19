@@ -168,7 +168,7 @@ fun SettingsView(viewModel: AppViewModel, modifier: Modifier = Modifier) {
         value
     }
     var activePage by remember { mutableStateOf(if (directToBlocks) 14 else 0) }
-    var showUninstallConfirm by remember { mutableStateOf(false) }
+    val showUninstallConfirm by viewModel.showUninstallConfirm.collectAsState()
 
     val vmActivePage by viewModel.settingsActivePage.collectAsState()
     LaunchedEffect(vmActivePage) {
@@ -196,7 +196,8 @@ fun SettingsView(viewModel: AppViewModel, modifier: Modifier = Modifier) {
                     SettingsRowData("DIAGNOSTICS & BACKGROUND", "Fix stopwatch lockscreen freeze & background recording on Samsung/Oppo/Lenovo/Moto", Icons.Default.Info, Color(0xFFE53935)) { activePage = 17 },
                     SettingsRowData("SYSTEM UPDATE CENTER", "Check for updates, manage background downloads, authenticate tester", Icons.Default.Refresh, Color(0xFF4CAF50)) { activePage = 16 },
                     SettingsRowData("2. DEEPA AI BRAIN", "Offline model caching, memories vault management", Icons.Default.Face, Color(0xFF00E5FF)) { activePage = 11 },
-                    SettingsRowData("3. BACKUP & RESTORE", "JSON manual database import & security exports", Icons.Default.Refresh, Color(0xFFFFB300)) { activePage = 12 }
+                    SettingsRowData("3. BACKUP & RESTORE", "JSON manual database import & security exports", Icons.Default.Refresh, Color(0xFFFFB300)) { activePage = 12 },
+                    SettingsRowData("KEYBOARD SHORTCUTS HELP", "View all connected physical keyboard shortcuts & mappings", Icons.Default.Keyboard, Color(0xFF9C27B0)) { activePage = 99 }
                 )
             ),
             SettingsCategoryData(
@@ -243,7 +244,7 @@ fun SettingsView(viewModel: AppViewModel, modifier: Modifier = Modifier) {
                 items = listOf(
                     SettingsRowData("16. DEEP LINKS & SHORTCUTS", "Copy application deep links, automation URI routes & assets", Icons.Default.Share, Color(0xFF03A9F4)) { activePage = 18 },
                     SettingsRowData("LOGOUT", "Sign out from the current online account securely", Icons.Default.ExitToApp, Color(0xFFD32F2F)) { viewModel.logout() },
-                    SettingsRowData("UNINSTALL & DE-REGISTER", "Securely wipe local data, notify peers on Firebase, and uninstall app", Icons.Default.Delete, Color(0xFFD32F2F)) { showUninstallConfirm = true }
+                    SettingsRowData("UNINSTALL & DE-REGISTER", "Securely wipe local data, notify peers on Firebase, and uninstall app", Icons.Default.Delete, Color(0xFFD32F2F)) { viewModel.setShowUninstallConfirm(true) }
                 )
             )
         )
@@ -678,11 +679,21 @@ fun SettingsView(viewModel: AppViewModel, modifier: Modifier = Modifier) {
                 onBack = { activePage = 0 }
             )
         }
+
+        99 -> {
+            SettingsSubpageWorkspace(
+                title = "Keyboard Shortcuts Help",
+                description = "View and manage keyboard shortcut mappings for physical keyboards.",
+                onBack = { activePage = 0 }
+            ) {
+                SettingsKeyboardShortcutsPage()
+            }
+        }
     }
 
     if (showUninstallConfirm) {
         AlertDialog(
-            onDismissRequest = { showUninstallConfirm = false },
+            onDismissRequest = { viewModel.setShowUninstallConfirm(false) },
             title = { Text("Secure De-register & Uninstall", fontWeight = FontWeight.Bold, color = Color.White) },
             text = {
                 Text(
@@ -698,7 +709,7 @@ fun SettingsView(viewModel: AppViewModel, modifier: Modifier = Modifier) {
             confirmButton = {
                 Button(
                     onClick = {
-                        showUninstallConfirm = false
+                        viewModel.setShowUninstallConfirm(false)
                         viewModel.deregisterAndUninstall(context) {
                             val intent = android.content.Intent(android.content.Intent.ACTION_DELETE).apply {
                                 data = android.net.Uri.parse("package:${context.packageName}")
@@ -712,7 +723,7 @@ fun SettingsView(viewModel: AppViewModel, modifier: Modifier = Modifier) {
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showUninstallConfirm = false }) {
+                TextButton(onClick = { viewModel.setShowUninstallConfirm(false) }) {
                     Text("Cancel", color = Color.Gray)
                 }
             },
@@ -12692,3 +12703,183 @@ fun WaterReminderBanner(viewModel: AppViewModel, modifier: Modifier = Modifier) 
         }
     }
 }
+
+@Composable
+fun SettingsKeyboardShortcutsPage() {
+    val context = LocalContext.current
+    val keyboardConnected = remember {
+        val config = context.resources.configuration
+        config.keyboard == android.content.res.Configuration.KEYBOARD_QWERTY || 
+        config.hardKeyboardHidden == android.content.res.Configuration.HARDKEYBOARDHIDDEN_NO
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0F12)),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, if (keyboardConnected) Color(0xFF4CAF50).copy(alpha = 0.3f) else Color.Gray.copy(alpha = 0.2f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(if (keyboardConnected) Color(0xFF4CAF50).copy(alpha = 0.15f) else Color.Gray.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Keyboard,
+                            contentDescription = "Keyboard Status",
+                            tint = if (keyboardConnected) Color(0xFF4CAF50) else Color.Gray,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = if (keyboardConnected) "Physical Keyboard Connected" else "No Hardware Keyboard Detected",
+                            color = if (keyboardConnected) Color(0xFF4CAF50) else Color.Gray,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (keyboardConnected) "All keyboard shortcuts are active and ready to use." else "Connect a hardware/Bluetooth keyboard to use these shortcuts.",
+                            color = Color.Gray,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Text(
+                text = "GLOBAL SCREEN NAVIGATION",
+                color = Color(0xFF38B0F2),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.sp
+            )
+        }
+
+        val globalShortcuts = listOf(
+            "Ctrl + Shift + S" to "Toggle / Open Settings Screen",
+            "Ctrl + Shift + T" to "Go to Timer Screen",
+            "Ctrl + Shift + C" to "Go to Calendar Screen",
+            "Ctrl + Shift + K" to "Go to Keep Notes Screen",
+            "Ctrl + Shift + J" to "Go to Life Journal Screen",
+            "Ctrl + Shift + H" to "Go to Habits Tracker Screen",
+            "Ctrl + Shift + F" to "Go to Financial Ledger Screen",
+            "Ctrl + Shift + D" to "Go to Deepa AI Brain",
+            "Ctrl + Shift + N" to "Go to Tasks Engine Screen",
+            "Ctrl + Shift + A" to "Go to Analytics Dashboard",
+            "Ctrl + Shift + L" to "Go to Live Sphere Screen",
+            "Ctrl + Shift + O" to "Go to Focus Groups (Focus Locker)",
+            "Ctrl + Shift + X" to "Go to File Explorer Screen",
+            "Ctrl + Shift + G" to "Go to Contacts Directory",
+            "Ctrl + Shift + R" to "Go to Arena Screen",
+            "Ctrl + Shift + P" to "Go to Countdowns & Alerts",
+            "Ctrl + Shift + U" to "Go to Health & Fitness Sync"
+        )
+
+        items(globalShortcuts) { (keys, action) ->
+            ShortcutItemRow(keys = keys, description = action)
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "SETTINGS SUBPAGES & ACTIONS (ALT KEY)",
+                color = Color(0xFFFFB300),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.sp
+            )
+        }
+
+        val settingsShortcuts = listOf(
+            "Alt + G  (or Alt + 1)" to "Open General System Settings",
+            "Alt + D  (or Alt + 2)" to "Open Diagnostics & Background",
+            "Alt + U  (or Alt + 3)" to "Open System Update Center",
+            "Alt + B  (or Alt + 4)" to "Open Deepa AI Brain Settings",
+            "Alt + R  (or Alt + 5)" to "Open Backup & Restore Center",
+            "Alt + T  (or Alt + 6)" to "Open Timer Configuration",
+            "Alt + S  (or Alt + 7)" to "Open Study Groups (Focus Locker)",
+            "Alt + K  (or Alt + 8)" to "Open Tasks Engine Settings",
+            "Alt + C  (or Alt + 9)" to "Open Calendar Planner Settings",
+            "Alt + H  (or Alt + 0)" to "Open Habits Tracker Settings",
+            "Alt + W" to "Open Sleep & Wake-up Alarm",
+            "Alt + A" to "Open Countdowns & Alerts Settings",
+            "Alt + J" to "Open Life Journal Settings",
+            "Alt + I" to "Open Contacts Directory Settings",
+            "Alt + E" to "Open File Explorer Settings",
+            "Alt + F" to "Open Financial Ledger Settings",
+            "Alt + L" to "Open Secure App Lock Settings",
+            "Alt + M" to "Open Blocks & Screen Limits Settings",
+            "Alt + P" to "Open Permissions & API Connections",
+            "Alt + O" to "Open Deep Links & Shortcuts Settings",
+            "Alt + X" to "Logout securely",
+            "Alt + Y" to "De-register and Uninstall confirmation",
+            "Alt + Q" to "Return to Settings Main Menu"
+        )
+
+        items(settingsShortcuts) { (keys, action) ->
+            ShortcutItemRow(keys = keys, description = action)
+        }
+    }
+}
+
+@Composable
+fun ShortcutItemRow(keys: String, description: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF09090C)),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, Color(0xFF1F1F24))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = description,
+                color = Color.LightGray,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xFF1C1C24))
+                    .border(1.dp, Color(0xFF2C2C35), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = keys,
+                    color = Color.White,
+                    fontSize = 10.sp,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+

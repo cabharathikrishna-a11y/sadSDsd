@@ -883,7 +883,7 @@ fun PeerStatusCard(
                     Spacer(modifier = Modifier.height(6.dp))
                 }
 
-                if (peer.currentTask.isNotEmpty()) {
+                if (peer.currentTask.isNotEmpty() && !peer.currentTask.equals("Relaxing", ignoreCase = true)) {
                     Text(
                         text = peer.currentTask,
                         color = Color.LightGray.copy(alpha = 0.9f),
@@ -1101,12 +1101,14 @@ fun MyStatusCard(
                     Spacer(modifier = Modifier.height(6.dp))
                 }
 
-                Text(
-                    text = attachedTaskName.ifEmpty { "Relaxing" },
-                    color = Color.LightGray.copy(alpha = 0.9f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal
-                )
+                if (attachedTaskName.isNotEmpty() && !attachedTaskName.equals("Relaxing", ignoreCase = true)) {
+                    Text(
+                        text = attachedTaskName,
+                        color = Color.LightGray.copy(alpha = 0.9f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Normal
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
